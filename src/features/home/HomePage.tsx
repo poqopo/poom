@@ -36,12 +36,12 @@ function formatDate(date: string) {
   return new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric' }).format(new Date(date))
 }
 
-export function HomePage() {
+export function HomePage({ displayName }: { displayName: string }) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const summary = useHomeSummary(user?.id ?? '')
   const [signOutError, setSignOutError] = useState('')
-  const displayName = summary.data?.display_name || user?.email?.split('@')[0] || '친구'
+  const homeDisplayName = summary.data?.display_name || displayName
 
   async function handleSignOut() {
     setSignOutError('')
@@ -59,7 +59,7 @@ export function HomePage() {
         <header className="home-header flex items-center justify-between gap-3">
           <Brand compact />
           <div className="flex items-center gap-3">
-            <span className="user-greeting truncate text-sm text-ink-muted">반가워요, <strong className="font-semibold text-ink">{displayName}</strong></span>
+            <span className="user-greeting truncate text-sm text-ink-muted">반가워요, <strong className="font-semibold text-ink">{homeDisplayName}</strong></span>
             <button className="min-h-11 rounded-full border border-line bg-white/70 px-4 text-sm font-semibold text-ink-muted transition hover:bg-white focus-visible:outline-2 focus-visible:outline-orange-700" onClick={handleSignOut} type="button">로그아웃</button>
           </div>
         </header>

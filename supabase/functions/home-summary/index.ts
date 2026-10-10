@@ -56,8 +56,18 @@ Deno.serve(async (request: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser(token)
   if (authError || !user) return json({ error: 'unauthorized' }, 401)
 
-  const [profileResult, countResult, recentResult] = await Promise.all([
-    supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle(),
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('display_name, onboarding_completed')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profileError) return json({ error: 'home_summary_unavailable' }, 500)
+  if (!profile?.onboarding_completed || !profile.display_name?.trim()) {
+    return json({ error: 'onboarding_required' }, 403)
+  }
+
+  const [countResult, recentResult] = await Promise.all([
     supabase.from('memory_entries').select('id', { count: 'exact', head: true })
       .eq('owner_id', user.id).eq('status', 'draft'),
     supabase.from('memory_entries')
@@ -66,18 +76,13 @@ Deno.serve(async (request: Request) => {
       .order('created_at', { ascending: false }).limit(2),
   ])
 
-  if (profileResult.error || countResult.error || recentResult.error) {
+  if (countResult.error || recentResult.error) {
     return json({ error: 'home_summary_unavailable' }, 500)
   }
 
-  const fallbackName = user.user_metadata?.display_name
-    || user.user_metadata?.name
-    || user.email?.split('@')[0]
-    || '친구'
-
   return json({
     user_id: user.id,
-    display_name: profileResult.data?.display_name || fallbackName,
+    display_name: profile.display_name,
     pending_memory_count: countResult.count ?? 0,
     recent_memories: recentResult.data ?? [],
   })

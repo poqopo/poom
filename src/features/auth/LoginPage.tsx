@@ -17,7 +17,7 @@ export function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
-        options: { redirectTo: new URL('/', window.location.origin).toString() },
+        options: { redirectTo: new URL('/home', window.location.origin).toString() },
       })
 
       if (error) {

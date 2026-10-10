@@ -31,3 +31,4 @@ supabase/signing_keys.json
 *.njsproj
 *.sln
 *.sw?
+.vercel

@@ -1,71 +1,59 @@
 import { useState } from 'react'
-import { Brand } from '../../components/Brand'
+import { Link } from 'react-router-dom'
+import { AppShell, ErrorNotice } from '../../components/AppShell'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from './useAuth'
 
 export function LoginPage() {
+  const { user } = useAuth()
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const kakaoAlreadyLinked = user?.identities?.some((identity) => identity.provider === 'kakao') ?? false
 
-  async function handleKakaoLogin() {
-    setErrorMessage('')
-    if (!supabase) {
-      setErrorMessage('Supabase 연결 설정을 확인해주세요.')
+  async function linkKakaoAccount() {
+    if (!supabase || !user) {
+      setErrorMessage('현재 기기의 세션을 확인할 수 없습니다.')
       return
     }
-
+    setErrorMessage('')
     setIsSubmitting(true)
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.linkIdentity({
         provider: 'kakao',
         options: { redirectTo: new URL('/home', window.location.origin).toString() },
       })
-
-      if (error) {
-        setErrorMessage('카카오 로그인에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.')
-      }
+      if (error) setErrorMessage('카카오 계정을 연결하지 못했습니다. 기존 계정에 연결된 카카오 계정인지 확인해주세요.')
     } catch {
-      setErrorMessage('카카오 로그인에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.')
+      setErrorMessage('카카오 계정을 연결하지 못했습니다. 네트워크를 확인해주세요.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <main className="login-scene login-screen relative flex min-h-[100dvh] items-center justify-center overflow-x-hidden px-4 py-4">
-      <div aria-hidden="true" className="decor-orb decor-orb--one" />
-      <div aria-hidden="true" className="decor-orb decor-orb--two" />
-      <div className="login-layout relative z-10 grid w-full items-center">
-        <section className="login-intro mx-auto text-center">
-          <Brand />
-          <h1 className="login-slogan mt-4 font-bold tracking-[-0.04em] text-ink">
-            가장 빠르게 연결되는 시대에,
-            <br className="hidden sm:block" />
-            우리는 가장 느린 연결을 만듭니다.
-          </h1>
-          <p className="login-description mx-auto mt-2 text-ink-muted">
-            문득 떠오른 마음을 모아두었다가, 직접 만나는 날 천천히 건네요.
-          </p>
-        </section>
-
-        <section aria-labelledby="login-title" className="login-card glass-card glass-card--strong mx-auto w-full rounded-[28px] p-6">
-          <div className="login-card-heading mb-5">
-            <p className="text-sm font-semibold text-orange-700">다시 만났네요</p>
-            <h2 id="login-title" className="mt-2 text-2xl font-bold text-ink">로그인</h2>
-            <p className="mt-1 text-sm leading-6 text-ink-muted">카카오 계정으로 추억 상자를 열어보세요.</p>
-          </div>
-          {errorMessage && <p className="mb-4 rounded-control bg-red-50 px-4 py-3 text-sm leading-6 text-danger" role="alert">{errorMessage}</p>}
-          <button
-            aria-label="카카오 로그인"
-            aria-busy={isSubmitting}
-            className="kakao-login-button flex min-h-11 w-full items-center justify-center rounded-xl bg-[#FEE500] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait"
-            disabled={isSubmitting}
-            onClick={() => void handleKakaoLogin()}
-            type="button"
-          >
-            <img alt="" height="46" src="/kakao-login.svg" width="224" />
-          </button>
-        </section>
-      </div>
-    </main>
+    <AppShell title="추억 보관 이어가기" backTo="/home">
+      <section className="app-hero">
+        <p className="app-eyebrow">선택 사항</p>
+        <h2>내 추억을<br />계속 보관할까요?</h2>
+        <p className="app-body-copy mt-2">카카오 계정을 연결하면 이 기기의 추억을 계정에 이어둘 수 있어요. 로그인은 필수가 아닙니다.</p>
+      </section>
+      <section className="app-card mt-3 p-4">
+        {kakaoAlreadyLinked ? (
+          <>
+            <p className="font-semibold text-ink">카카오 계정이 이미 연결되어 있어요.</p>
+            <p className="app-body-copy mt-2">이 계정의 사용자 ID와 추억이 유지됩니다.</p>
+          </>
+        ) : (
+          <>
+            <p className="app-body-copy">연결을 시작하면 기존 Poom 사용자 ID를 유지한 채 카카오 인증을 진행합니다. 이미 다른 Poom 계정에 연결된 카카오는 자동 병합하지 않습니다.</p>
+            <button className="app-primary-button mt-4 w-full" disabled={isSubmitting} onClick={() => void linkKakaoAccount()} type="button">
+              {isSubmitting ? '카카오로 이동하고 있어요…' : '카카오 계정 연결하기'}
+            </button>
+          </>
+        )}
+        {errorMessage && <ErrorNotice>{errorMessage}</ErrorNotice>}
+        <Link className="mt-3 block py-2 text-center text-sm font-semibold text-orange-700" to="/home">지금은 건너뛰기</Link>
+      </section>
+    </AppShell>
   )
 }

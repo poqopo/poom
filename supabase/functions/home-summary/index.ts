@@ -42,8 +42,8 @@ Deno.serve(async (request: Request) => {
   const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
   if (!token) return json({ error: 'unauthorized' }, 401)
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')
-  const publishableKey = getPublishableKey()
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? new URL(request.url).origin
+  const publishableKey = request.headers.get('apikey') ?? getPublishableKey()
   if (!supabaseUrl || !publishableKey) {
     return json({ error: 'service_configuration_error' }, 500)
   }
@@ -58,14 +58,11 @@ Deno.serve(async (request: Request) => {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('display_name, onboarding_completed')
+    .select('display_name')
     .eq('id', user.id)
     .maybeSingle()
 
   if (profileError) return json({ error: 'home_summary_unavailable' }, 500)
-  if (!profile?.onboarding_completed || !profile.display_name?.trim()) {
-    return json({ error: 'onboarding_required' }, 403)
-  }
 
   const [countResult, recentResult] = await Promise.all([
     supabase.from('memory_entries').select('id', { count: 'exact', head: true })
@@ -82,7 +79,9 @@ Deno.serve(async (request: Request) => {
 
   return json({
     user_id: user.id,
-    display_name: profile.display_name,
+    display_name: profile?.display_name?.trim()
+      || (typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : '')
+      || '친구',
     pending_memory_count: countResult.count ?? 0,
     recent_memories: recentResult.data ?? [],
   })
